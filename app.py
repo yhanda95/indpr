@@ -384,41 +384,59 @@ if df is not None and not df.empty:
     with tab5:
         st.subheader("📰 Latest News & Sentiment Analysis")
         
-        news = get_stock_news(ticker)
-        
-        if news:
-            overall_sentiment = 0
-            for article in news:
-                with st.expander(f"📄 {article['title']}"):
-                    st.write(article.get('publisher', 'Unknown'))
+        try:
+            news = get_stock_news(ticker)
+            
+            if news and len(news) > 0:
+                overall_sentiment = 0
+                valid_articles = 0
+                
+                for article in news:
+                    # Safely get article title
+                    title = article.get('title', article.get('headline', 'No title available'))
                     
-                    # Sentiment analysis
-                    sentiment, score = analyze_sentiment(article['title'])
-                    overall_sentiment += score
+                    if title and title != 'No title available':
+                        with st.expander(f"📄 {title}"):
+                            # Publisher
+                            publisher = article.get('publisher', article.get('source', 'Unknown'))
+                            st.write(f"**Source:** {publisher}")
+                            
+                            # Sentiment analysis
+                            sentiment, score = analyze_sentiment(title)
+                            overall_sentiment += score
+                            valid_articles += 1
+                            
+                            if sentiment == "Positive":
+                                st.success(f"Sentiment: {sentiment} ({score:.2f})")
+                            elif sentiment == "Negative":
+                                st.error(f"Sentiment: {sentiment} ({score:.2f})")
+                            else:
+                                st.info(f"Sentiment: {sentiment} ({score:.2f})")
+                            
+                            # Link
+                            link = article.get('link', article.get('url', None))
+                            if link:
+                                st.markdown(f"[Read more]({link})")
+                
+                # Overall sentiment
+                if valid_articles > 0:
+                    avg_sentiment = overall_sentiment / valid_articles
+                    st.markdown("---")
+                    st.subheader("Overall News Sentiment")
                     
-                    if sentiment == "Positive":
-                        st.success(f"Sentiment: {sentiment} ({score:.2f})")
-                    elif sentiment == "Negative":
-                        st.error(f"Sentiment: {sentiment} ({score:.2f})")
+                    if avg_sentiment > 0.1:
+                        st.success(f"✅ Positive ({avg_sentiment:.2f})")
+                    elif avg_sentiment < -0.1:
+                        st.error(f"⚠️ Negative ({avg_sentiment:.2f})")
                     else:
-                        st.info(f"Sentiment: {sentiment} ({score:.2f})")
-                    
-                    if 'link' in article:
-                        st.markdown(f"[Read more]({article['link']})")
-            
-            # Overall sentiment
-            avg_sentiment = overall_sentiment / len(news)
-            st.markdown("---")
-            st.subheader("Overall News Sentiment")
-            
-            if avg_sentiment > 0.1:
-                st.success(f"✅ Positive ({avg_sentiment:.2f})")
-            elif avg_sentiment < -0.1:
-                st.error(f"⚠️ Negative ({avg_sentiment:.2f})")
+                        st.info(f"➖ Neutral ({avg_sentiment:.2f})")
+                else:
+                    st.info("No valid news articles found for sentiment analysis.")
             else:
-                st.info(f"➖ Neutral ({avg_sentiment:.2f})")
-        else:
-            st.info("No recent news available for this stock.")
+                st.info("No recent news available for this stock.")
+        except Exception as e:
+            st.warning("Unable to fetch news at the moment. This feature requires an active internet connection.")
+            st.info("💡 You can still use all other features like charts, predictions, and technical analysis!")
 
 else:
     st.error(f"Unable to fetch data for ticker: {ticker}. Please check the ticker symbol.")
